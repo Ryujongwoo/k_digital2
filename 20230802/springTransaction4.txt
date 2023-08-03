@@ -1,0 +1,80 @@
+servlet-context.xml에 bean 추가
+
+<!-- DriverManagerDataSource 클래스 bean 설정 => DB 연결정보 -->
+<beans:bean name="dataSource" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+	<beans:property name="driverClassName" value="oracle.jdbc.driver.OracleDriver"/>
+	<beans:property name="url" value="jdbc:oracle:thin:@localhost:1521:xe"/>
+	<beans:property name="username" value="koreait"/>
+	<beans:property name="password" value="0000"/>
+</beans:bean>
+
+<!-- JdbcTemplate 클래스 bean 설정 => DB와 연결 -->
+<beans:bean name="template" class="org.springframework.jdbc.core.JdbcTemplate">
+	<beans:property name="dataSource" ref="dataSource"/>
+</beans:bean>
+
+<!-- 트랜잭션 Bean 설정 -->
+<beans:bean name="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+	<beans:property name="dataSource" ref="dataSource"/>
+</beans:bean>
+
+
+
+###### 여기부터
+<!-- 트랜잭션 Bean을 참조하는 트랜잭션 템플릿 Bean 설정 => springTransaction3에서 추가 -->
+<beans:bean name="transactionTemplate" class="org.springframework.transaction.support.TransactionTemplate">
+	<beans:property name="transactionManager" ref="transactionManager"/>
+</beans:bean>
+##### 여기까지를
+
+##### 여기부터
+<!-- 트랜잭션 Bean을 참조하는 트랜잭션 템플릿 Bean 설정 추가 => 트랜잭션을 2개 사용하므로 2개를 설정한다. -->
+<!-- 내부 트랜잭션 설정 -->
+<beans:bean name="transactionTemplate1" class="org.springframework.transaction.support.TransactionTemplate">
+	<beans:property name="transactionManager" ref="transactionManager"/>
+	<!-- 트랜잭션 전파 속성을 지정한다. -->
+	<!-- REQUIRED(DEFAULT) => 0, REQUIRED_NEW => 3 -->
+	<!-- MANDATORY => 2, NEVER => 5 -->
+	<!-- SUPPORTS => 1, NOT_SUPPORTED => 4 -->
+	<beans:property name="propagationBehavior" value="0"/>
+</beans:bean>
+<!-- 외부 트랜잭션 설정 -->
+<beans:bean name="transactionTemplate2" class="org.springframework.transaction.support.TransactionTemplate">
+	<beans:property name="transactionManager" ref="transactionManager"/>
+	<beans:property name="propagationBehavior" value="0"/>
+</beans:bean>
+##### 여기까지로 수정
+
+<!-- DAO 클래스의 bean 설정 -->
+<beans:bean name="dao" class="com.koreait.dao.TransactionDAO">
+	<beans:property name="template" ref="template"/>
+	<!-- 트랜잭션 템플릿 객체 초기화, transactionTemplate1으로 수정 -->
+	<beans:property name="transactionTemplate1" ref="transactionTemplate1"/>
+</beans:bean>
+
+##### 여기부터
+<!-- Service Interface를 구현받은 TicketInsert 클래스 Bean 설정 => -->
+<beans:bean name="service" class="com.koreait.service.TicketInsert">
+	<beans:property name="dao" ref="dao"/>
+	<beans:property name="transactionTemplate2" ref="transactionTemplate2"/>
+</beans:bean>
+##### 여기까지 추가
+
+==============================================================================================
+DAO 클래스
+
+//	트랜잭션 객체 대신 트랜잭션 템플릿을 사용한다. => 트랜잭션을 2개 사용해야 하므로 이놈을 1로 수정
+	TransactionTemplate transactionTemplate1;
+	public void setTransactionTemplate1(TransactionTemplate transactionTemplate1) {
+		this.transactionTemplate1 = transactionTemplate1;
+	}
+
+//		트랜잭션 템플릿 코딩 => 내부 트랜잭션
+		try {
+			
+			transactionTemplate1.execute(new TransactionCallbackWithoutResult() {
+
+
+
+
+
