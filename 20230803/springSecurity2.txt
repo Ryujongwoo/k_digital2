@@ -1,0 +1,60 @@
+loginForm.html 파일을 만든다.
+
+	<h1>loginForm.jsp 입니다.</h1>
+
+	<!-- action에 j_spring_security_check를 넣어줘야 시큐리티 인증 절차를 거칠 수 있다. -->
+	<c:url var="loginUrl" value="j_spring_security_check"/>
+	<form action="${loginUrl}" method="post">
+		<%--
+			시큐리티를 사용하려면 id와 password는 미리 정해진 약속된 키워드인 
+			j_username과 j_password를 사용해야 security-context.xml 파일의 
+			<security:authentication-manager>에서 사용할 수 있다.
+		--%>
+		ID : <input type="text" name="j_username"/><br/>
+		PW : <input type="password" name="j_password"/><br/>
+		<input type="submit" value="LOGIN"/><br/>
+	</form>
+
+==============================================================================================
+
+security-context.xml 파일에 사용자 로그인 페이지를 지정한다.
+
+	<!-- http로 요청되는 것에 대한 보안을 설정한다. -->
+	<security:http auto-config="true">
+		<!-- 컨트롤러에 login 또는 welcome 요청이 들어가면 표시될 사용자 로그인 페이지를 지정한다. -->
+		<security:form-login login-page="/loginForm"/> <!-- 이거 추가 -->
+		<security:intercept-url pattern="/login" access="ROLE_USER"/>
+		<security:intercept-url pattern="/welcome" access="ROLE_ADMIN"/>
+	</security:http>
+	
+==============================================================================================
+
+controller에 아래의 내용을 추가한다.
+
+@RequestMapping("/loginForm.html")
+public String loginForm(HttpServletRequest request, Model model) {
+	return "security/loginForm";
+}
+
+==============================================================================================
+
+login.jsp 내용 수정
+
+<h1>login.jsp</h1>
+
+<!-- userPrincipal => 사용자 권한 => 사용자가 비어있지 않다면 => 누군가가 로그인을 했다면 -->
+<c:if test="${not empty pageContext.request.userPrincipal}">
+	<p>is Log-In</p>
+</c:if>
+
+<c:if test="${empty pageContext.request.userPrincipal}">
+	<p>is Log-Out</p>
+</c:if>
+
+USER ID : ${pageContext.request.userPrincipal.name}<br/>
+<a href="${pageContext.request.contextPath}/j_spring_security_logout">Log Out</a> <br/>
+
+
+
+
+

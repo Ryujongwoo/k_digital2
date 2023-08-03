@@ -1,0 +1,59 @@
+security-context.xml 파일에 아래의 내용을 추가한다.
+
+	<!-- http로 요청되는 것에 대한 보안을 설정한다. -->
+	<security:http auto-config="true">
+		<!-- 컨트롤러에 login 또는 welcome 요청이 들어가면 표시될 사용자 로그인 페이지를 지정한다. -->
+		<!-- <security:form-login login-page="/loginForm"/> -->
+		<!-- 로그인 실패 메시지를 출력하기 위해 authentication-failure-url="/loginForm?ng"를 추가한다. -->
+		<security:form-login login-page="/loginForm" authentication-failure-url="/loginForm?ng"/> <!-- 이거 추가 -->
+		<security:intercept-url pattern="/login" access="ROLE_USER"/>
+		<security:intercept-url pattern="/welcome" access="ROLE_ADMIN"/>
+	</security:http>
+	
+==============================================================================================
+
+로그인 페이지(loginForm.jsp)에 로그인 실패 메시지 코드를 추가한다.
+
+	<form action="${loginUrl}" method="post">
+	
+		<!-- 로그인 실패 메시지를 출력한다. -->
+		<!-- ##### 여기부터 -->
+		<c:if test="${param.ng != null}">
+			<p>
+				LogIn NG!<br/>
+				<!-- exception이 발생되지 않았을 때 메시지를 출력한다. -->
+				<c:if test="${SPRING_SECURITY_LAST_EXCEPTION != NULL}">
+					message : <c:out value="${SPRING_SECURITY_LAST_EXCEPTION.message}"/> 
+				</c:if>
+			</p>
+		</c:if>
+		<!-- ##### 여기까지 추가 -->
+		
+		ID : <input type="text" name="j_username"/><br/>
+		PW : <input type="password" name="j_password"/><br/>
+		<input type="submit" value="LOGIN"/><br/>
+	</form>
+
+
+==============================================================================================
+
+login.jsp, welcome.jsp에 로그아웃 링크 추가
+
+	<h1>login.jsp</h1>
+
+	<!-- userPrincipal(사용자 권한) => 사용자가 비어있지 않다면 => 로그인 상태라면 -->
+	<c:if test="${not empty pageContext.request.userPrincipal}">
+		<p>is Log-In</p>
+	</c:if>
+	
+	<!-- userPrincipal(사용자 권한) => 사용자가 비어있면 => 로그아웃 상태라면 -->
+	<c:if test="${empty pageContext.request.userPrincipal}">
+		<p>is Log-Out</p>
+	</c:if>
+	
+	USER ID: ${pageContext.request.userPrincipal.name}<br/>
+	<a href="${pageContext.request.contextPath}/j_spring_security_logout">Log Out</a><br/>
+
+
+
+
