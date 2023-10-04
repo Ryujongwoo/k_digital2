@@ -1,0 +1,21 @@
+digraph Tree {
+node [shape=box, style="filled, rounded", color="black", fontname=helvetica] ;
+edge [fontname=helvetica] ;
+0 [label=<longitude &le; 126.912<br/>gini = 0.75<br/>samples = 20<br/>value = [5, 5, 5, 5]<br/>class = Gangbuk>, fillcolor="#ffffff"] ;
+1 [label=<gini = 0.0<br/>samples = 5<br/>value = [0, 0, 0, 5]<br/>class = Gangseo>, fillcolor="#d739e5"] ;
+0 -> 1 [labeldistance=2.5, labelangle=45, headlabel="True"] ;
+2 [label=<latitude &le; 37.525<br/>gini = 0.667<br/>samples = 15<br/>value = [5, 5, 5, 0]<br/>class = Gangbuk>, fillcolor="#ffffff"] ;
+0 -> 2 [labeldistance=2.5, labelangle=-45, headlabel="False"] ;
+3 [label=<gini = 0.0<br/>samples = 5<br/>value = [0, 0, 5, 0]<br/>class = Gangnam>, fillcolor="#399de5"] ;
+2 -> 3 ;
+4 [label=<latitude &le; 37.599<br/>gini = 0.5<br/>samples = 10<br/>value = [5, 5, 0, 0]<br/>class = Gangbuk>, fillcolor="#ffffff"] ;
+2 -> 4 ;
+5 [label=<longitude &le; 127.017<br/>gini = 0.408<br/>samples = 7<br/>value = [2, 5, 0, 0]<br/>class = Gangdong>, fillcolor="#91ef88"] ;
+4 -> 5 ;
+6 [label=<gini = 0.0<br/>samples = 2<br/>value = [2, 0, 0, 0]<br/>class = Gangbuk>, fillcolor="#e58139"] ;
+5 -> 6 ;
+7 [label=<gini = 0.0<br/>samples = 5<br/>value = [0, 5, 0, 0]<br/>class = Gangdong>, fillcolor="#47e539"] ;
+5 -> 7 ;
+8 [label=<gini = 0.0<br/>samples = 3<br/>value = [3, 0, 0, 0]<br/>class = Gangbuk>, fillcolor="#e58139"] ;
+4 -> 8 ;
+}
