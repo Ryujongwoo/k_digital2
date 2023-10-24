@@ -1,0 +1,410 @@
+GET _cat
+# 모든 인덱스 보기
+GET _cat/indices
+GET _cat/indices?v
+
+# 인덱스(테이블) 만들기
+# PUT 인덱스이름
+PUT index1
+PUT index2
+# 개별 인덱스 확인하기
+# GET 인덱스이름
+GET index1
+GET index2
+# 개별 인덱스 삭제하기, 인덱스가 삭제되면서 저장된 모든 도큐먼트도 같이 삭제된다.
+# DELETE 인덱스이름
+DELETE index1
+DELETE index2
+
+# 인덱스를 만들면서 데이터 입력하기
+# 인덱스가 없으면 인덱스를 만들고 도큐먼트를 입력하고 인덱스가 있으면 기존
+# 인덱스에 도큐먼트를 입력한다.
+# 도큐먼트를 인덱스에 포함(저장)시키는 것을 인덱싱이라고 한다.
+# 도큐먼트는 JSON 형식으로 입력한다.
+# PUT 인덱스이름/_doc/아이디
+PUT index2/_doc/1
+{
+  "name": "mike",
+  "age": 25,
+  "gender": "male"
+}
+
+# 기존 인덱스에 도큐먼트 입력하기
+# 기존에 없던 country 필드를 추가하고 기존에 있던 age, gender 필드는 사용하지
+# 않았지만 문제없이 추가된다.
+PUT index2/_doc/2
+{
+  "name": "kim",
+  "country": "france"
+}
+
+# 잘못된 도큐먼트 입력하기
+# age 필드는 long 타입으로 매핑되었는데 text 타입으로 입력했다.
+# 관계형 데이터베이스라면 오류가 발생했겠지만 유연하게 대응하는 엘라스틱서치는
+# 타입을 변환해서 저장한다.
+PUT index2/_doc/3
+{
+  "name": "jane",
+  "age": "20",
+  "gender": "female"
+}
+
+# 아이디를 이용해서 인덱스에 저장된 개별 도큐먼트 조회하기
+# GET 인덱스이름/_doc/아이디
+GET index2/_doc/1
+GET index2/_doc/2
+GET index2/_doc/3
+
+# 엘라스틱서치가 제공하는 쿼리(DSL, Domain Specific Language)를 이용해 도큐먼트
+# 조회하기
+# 인덱스에 저장된 모든 도큐먼트를 읽어오기
+GET index2/_search
+
+# 도큐먼트 수정하기
+# PUT 인덱스이름/_doc/아이디
+# PUT 명령을 존재하지 않는 아이디로 실행하면 도큐먼트가 입력되고 존재하는
+# 아이디로 실행하면 도큐먼트가 수정된다.
+PUT index2/_doc/1
+{
+  "name": "park",
+  "age": 45,
+  "gender": "female"
+}
+
+# PUT 명령으로 도큐먼트를 수정하면 기존에 저장된 모든 필드가 삭제되고 새로
+# 입력하는 내용으로 도큐먼트가 덮어쓰기가 된다.
+PUT index2/_doc/2
+{
+  "name": "hong"
+}
+
+# POST 명령으로 도큐먼트를 수정하면 저장되어있던 모든 데이터는 그대로 유지되고
+# 수정하는 데이터만 수정된다.
+# POST 인덱스이름/_update/아이디
+# {} 내부에 바로 수정하려는 내용을 쓰면 안되고 doc 블록을 만들고 doc 블록
+# 내부에 수정할 내용을 써야한다.
+POST index2/_update/3
+{
+  "doc": {
+    "name": "choi"
+  }
+}
+
+# 아이디를 이용해서 인덱스에 저장된 개별 도큐먼트 삭제하기
+# DELETE 인덱스이름/_doc/아이디
+DELETE index2/_doc/2
+
+# 벌크(더미) 데이터
+# 도큐먼트 CRUD 동작을 할 때 REST API를 호출해 하나하나 도큐먼트를 요청하는 
+# 것 보다 벌크로 한 번에 요청하는 것이 효율적이다.
+# 벌크는 도큐먼트 읽기는 지원하지 않고 생성, 수정, 삭제만 지원한다.
+# 벌크 데이터 형식은 삭제(delete)는 한 줄로 작성하고 나머지 작업(index, create,
+# update)은 두 줄로 작성한다.
+
+# 벌크 데이터 입력하기
+# POST _bulk
+# {"index": {"_index": "인덱스이름", "_id": "아이디"}}
+# {"field": "value", ...}
+# index는 벌크 데이터로 입력되는 아이디가 존재하면 기존 데이터를 수정한다.
+POST _bulk
+{"index": {"_index": "index2", "_id": "4"}}
+{"name": "kang", "age": 30, "gender": "male"}
+
+# POST _bulk
+# {"create": {"_index": "인덱스이름", "_id": "아이디"}}
+# {"field": "value", ...}
+POST _bulk
+{"create": {"_index": "index2", "_id": "5"}}
+{"name": "song", "age": 35, "gender": "female"}
+# create는 벌크 데이터로 입력되는 아이디가 존재하면 에러가 발행된다.
+
+# 벌크 데이터 수정하기
+# POST _bulk
+# {"update": {"_index": "인덱스이름", "_id": "아이디"}}
+# {"doc": {"field": "value", ...}}
+POST _bulk
+{"update": {"_index": "index2", "_id": "4"}}
+{"doc": {"name": "jang"}}
+
+# 벌크 데이터 삭제하기
+# POST _bulk
+# {"delete": {"_index": "인덱스이름", "_id": "아이디"}}
+POST _bulk
+{"delete": {"_index": "index2", "_id": "5"}}
+
+GET index2/_doc/4
+GET index2/_doc/5
+
+# 매핑(Mapping)
+# 관계형 데이터베이스의 스키마와 같은 역할을 하는 것을 매핑이라 한다.
+# 엘라스틱서치가 검색 엔진으로 전문 검색과 대용량 데이터를 빠르게 실시간 검색할
+# 수 있는 이유는 매핑이 있기 때문인데 매핑을 엘라스틱서치가 자동으로 하면
+# 다이내믹(오토) 매핑이라 하고, 사용자가 직접 설정하면 명시적 매핑이라 한다.
+# 엘라스틱서치는 문자열 타입을 text와 keyword 타입으로 나눌 수 있는데, 전문
+# 검색을 활용하려면 이 두 가지 타입을 이해하고 있어야 한다.
+
+# 인덱스 매핑 정보만 확인하기
+GET index2/_mapping
+
+# 인덱스를 만들면서 명시적 매핑 지정하기
+# PUT index3
+# {
+#   "mappings": {
+#     "properties": {
+#       "필드이름": {
+#         "type": "필드타입"
+#       }
+#       , ...
+#     }
+#   }
+# }
+
+PUT index3
+{
+  "mappings": {
+    "properties": {
+      "name" : {
+        "type" : "text"
+      },
+      "age": {
+        "type": "short"
+      },
+      "gender": {
+        "type": "keyword"
+      }
+    }
+  }
+}
+GET index3/_mapping
+DELETE index3
+
+# 다이내믹 매핑 타입
+# boolean(논리값), float(실수), long(정수), object(객체), text/keyword(문자열)
+
+# 명시적 매핑 타입
+# 텍스트
+#   text: 전문 검색, 텍스트 분석기가 텍스트를 작은 단위(단어)로 분리한다.
+#   keyword: 정렬 또는 집계, 텍스트를 분리하지 않고 원문을 통째로 인덱싱한다.
+# 날짜
+#   date: 날짜/시간 데이터
+# 부호있는 정수(고정 소수점)
+#   byte: 8비트, -128 ~ 127
+#   short: 16비트, -32768 ~ 32767
+#   integer: 32비트, -2147483648 ~ 2147483647
+#   long: 64비트, -2^63 ~ 2^63 - 1
+# 실수(부동/유동 소수점)
+#   scaled float: float 데이터의 특정 값을 곱해서 정수형으로 바꾼 데이터
+#   half_float: 16비트 실수
+#   float: 32비트 실수
+#   double: 64비트 실수
+# 논리
+#   boolean: true 또는 false만 값으로 가진다.
+# IP 주소
+#   ip: ipv4 또는 ipv6 타입의 ip 주소를 입력한다.
+# 위치 정보
+#   geo-point: 하나의 위치 포인트(위도, 경도)
+#   geo-shape: 하나의 위치 포인트가 아닌 임의의 지형
+# 범위 설정
+#   integer_range, long_range: 정수형 범위
+#   float_range, double_range: 실수형 범위
+#   ip_range: ip 주소 범위
+#   date_range: 날자 범위
+# 객체형
+#   object: 계층 구조를 가지는 형태로 필드 안에 다른 필드들이 들어갈 수 있다.
+# 배열형
+#   nested: 배열형 객체
+#   join: 부모/자식 관계를 표현할 수 있다.
+
+# text 타입
+# 일반적으로 문장을 저장하는 매핑 타입으로 사용된다.
+# 무조건적인 강제성은 없지만 일반적으로 문장 또는 여러 단어가 나열되는 문자열은
+# text 타입으로 지정한다.
+
+POST _analyze
+{
+  "analyzer": "standard",
+  "text": "We offer solutions for enterprise search, observability, and security that are built on a single, flexible technology stack that can be deployed anywhere"
+}
+
+# text 타입으로 지정된 문자열은 분석기(analyzer)에 의해 토큰(token)으로 분리되고
+# 분리된 토큰들은 인덱싱되는데 이를 역인덱싱(inverted indexing)이라 한다. 이때,
+# 역인덱스에 저장된 토큰들을 용어(term)라고 한다.
+
+# text 타입을 가지는 인덱스 생성
+PUT text_index
+{
+  "mappings": {
+    "properties": {
+      "contents": {
+        "type": "text"
+      }
+    }
+  }
+}
+GET text_index/_mapping
+
+PUT text_index/_doc/1
+{
+  "contents": "beautiful day"
+}
+GET text_index/_doc/1
+
+PUT text_index/_doc/2
+{
+  "contents": "beautiful today"
+}
+GET text_index/_doc/2
+
+# text_index 인덱스에 match라는 전문 검색 쿼리 실행
+GET text_index/_search
+{
+  "query": {
+    "match": {
+      "contents": "day"
+    }
+  }
+}
+
+# keyword 타입을 가지는 인덱스 생성
+PUT keyword_index
+{
+  "mappings": {
+    "properties": {
+      "contents": {
+        "type": "keyword"
+      }
+    }
+  }
+}
+GET keyword_index/_mapping
+
+PUT keyword_index/_doc/1
+{
+  "contents": "beautiful day"
+}
+GET keyword_index/_doc/1
+
+PUT keyword_index/_doc/2
+{
+  "contents": "beautiful today"
+}
+GET keyword_index/_doc/2
+
+# keyword_index 인덱스에 match라는 전문 검색 쿼리 실행
+GET keyword_index/_search
+{
+  "query": {
+    "match": {
+      "contents": "day"
+    }
+  }
+}
+
+# 멀티 타입 필드
+# 멀티 타입 필드는 단일 필드 입력에 대해 여러 하위 필드를 정의한다.
+# 문자열의 경우 전문 검색이 필요하면서 정렬 또는 집계로 필요한 경우가 있다.
+# 멀티 타입 필드를 만들기 위해서는 fields라는 파라미터를 사용한다.
+
+# 멀티 타입 필드를 가지는 가지는 인덱스 생성
+PUT multifield_index
+{
+  "mappings": {
+    "properties": {
+      "message": {
+        "type": "text"
+      },
+      "contents": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      }
+    }
+  }
+}
+# message 필드는 단일 타입 필드이고 contents 필드는 멀티 타입 필드로 설정했다.
+# contents 필드는 text 타입이면서 keyword 타입을 가진다.
+# fields라는 파라미터에 "keyword"라는 필드 이름을 사용했는데 반드시 "keyword"
+# 라는 필드 이름을 사용하지 않고 "abc"와 같은 필드 이름을 사용해도 무관하지만
+# 통상적으로 "keyword"라는 필드 이름을 많이 사용한다.
+GET multifield_index/_mapping
+DELETE multifield_index
+
+PUT multifield_index/_doc/1
+{
+  "message": "1 document",
+  "contents": "beautiful day"
+}
+GET multifield_index/_doc/1
+
+PUT multifield_index/_doc/2
+{
+  "message": "2 document",
+  "contents": "beautiful today"
+}
+GET multifield_index/_doc/2
+
+PUT multifield_index/_doc/3
+{
+  "message": "3 document",
+  "contents": "wonderful day"
+}
+GET multifield_index/_doc/3
+
+PUT multifield_index/_doc/4
+{
+  "message": "4 document",
+  "contents": "beautiful today"
+}
+GET multifield_index/_doc/4
+GET multifield_index/_search
+
+# multifield_index 인덱스에 match라는 전문 검색 쿼리 실행
+GET multifield_index/_search
+{
+  "query": {
+    "match": {
+      "message": "document"
+    }
+  }
+}
+
+GET multifield_index/_search
+{
+  "query": {
+    "match": {
+      "contents": "beautiful"
+    }
+  }
+}
+
+# multifield_index 인덱스에 term라는 용어 검색 쿼리 실행
+# 이번에는 contents 필드의 keyword 타입으로 검색해보자. keyword 타입은 contents
+# 필드의 하위 필드이므로 조금 다른 방식의 접근이 필요하다.
+# "contents"는 contents 필드를 의미하므로 contents 뒤에 keyword를 추가해서
+# "contents.keyword"를 사용하면 하위 필드를 참조할 수 있다.
+GET multifield_index/_search
+{
+  "query": {
+    "term": {
+      "contents.keyword": "beautiful today"
+    }
+  }
+}
+
+# multifield_index 인덱스에 aggs라는 집계 쿼리 실행
+GET multifield_index/_search
+{
+  "aggs": {
+    "contents": {
+      "terms": {
+        "field": "contents.keyword",
+        "size": 10
+      }
+    }
+  }
+}
+# "contents.keyword"로 지정했으므로 값이 같은 데이터끼리 그룹화가 된다.
+# "size"는 집계를 계산하는데 사용된 데이터를 출력할 개수를 지정한다.
