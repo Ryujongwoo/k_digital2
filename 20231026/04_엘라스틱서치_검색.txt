@@ -1,0 +1,242 @@
+GET kibana_sample_data_ecommerce/_mapping
+
+# 쿼리 컨텍스트(query context)
+# 쿼리 컨텍스트는 질의에 대한 유사도를 계산해 이를 기준으로 더 정확한 결과를 먼저
+# 보여준다.
+# 도큐먼트에서 "엘라스틱"이 포함되어 있는지 찾을 때 사용한다.
+
+# _search는 검색 쿼리를 위해 엘라스틱서치에서 제공하는 REST API 이다.
+# 전체 보기
+GET kibana_sample_data_ecommerce/_search
+# 쿼리를 사용해서(조건 설정) 보기
+# match는 전문 검색을 위한 쿼리로, 역인덱싱된 용어를 검색할 때 사용한다.
+# kibana_sample_data_ecommerce 인덱스에 있는 category 필드의 역인덱스 테이블에
+# "clothing"라는 용어가 있는 모든 도큐먼트를 찾는 요청이다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "query": {
+    "match": {
+      "category": "Clothing"
+    }
+  }
+}
+
+# 필터 컨텍스트(filter context)
+# 필터 컨텍스트는 질의에 대한 유사도를 계산하지 않고 일치 여부에 따른 결과만
+# 반환한다.
+# 도큐먼트 제목 필드에 저장된 값이 정확히 "엘라스틱"인 문서를 찾을 때 사용한다.
+
+# bool은 논리 쿼리로 내부의 filter 타입에 적용된다.
+# kibana_sample_data_ecommerce 인덱스에 있는 day_of_week 필드에 저장된 값이
+# 정확히 "Friday"인 모든 도큐먼트를 찾는 요청이다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        {
+          "term": {
+            "day_of_week": "Friday"
+          }
+        }
+      ]
+    }
+  }
+}
+
+# 쿼리 스트링
+# REST API의 주소에 쿼리문을 작성하는 방법으로 단순한 조건일 경우 사용하기 쉽다.
+# 쿼리를 1줄로 만들어야 하기 때문에 조건이 복잡해지면 가독성이 떨어지고 오류를
+# 범하기 쉬워진다. => 간단한 쿼리에 사용한다.
+
+GET kibana_sample_data_ecommerce/_search?q=customer_full_name:Mary
+
+# 쿼리 DSL(Domain Specific Language)
+# 쿼리 DSL은 REST API의 요청 본문({} 블록) 내부에 JSON 형태로 쿼리를 작성한다.
+# 엘라스틱서치의 모든 쿼리 스펙을 지원하기 때문에 매우 강력하며 복잡한 쿼리를
+# 구현할 수 있다는 장점이 있다. => 복잡한 쿼리에 사용한다.
+
+GET kibana_sample_data_ecommerce/_search
+{
+  "query": {
+    "match": {
+      "customer_full_name": "Mary"
+    }
+  }
+}
+
+# 유사도 스코어
+# 쿼리 컨텍스트에서는 엘라스틱서치가 지원하는 다양한 스코어 알고리즘을 사용할 
+# 수 있는데 기본적로 BM25 알고리즘을 이용해 유사도 스코어를 계산한다.
+# 유사도 스코오는 질의문과 도큐먼트의 유사도를 표현하는 값으로, 스코어가
+# 높을수록 찾고자 하는 도큐먼트에 가깝다는 사실을 의미한다.
+# "explain": true를 추가하면 쿼리 내부적인 최적화 방법과 어떤 경로를 통해
+# 검색되었으며 어떤 기준으로 스코어가 계산되었는지 알 수 있다.
+
+GET kibana_sample_data_ecommerce/_search
+{
+  "query": {
+    "match": {
+      "products.product_name": "Pants"
+    }
+  },
+  "explain": true
+}
+
+# 엘라스틱서치는 검색을 위해 쿼리를 지원한다.
+# 리프 쿼리(leaf query)는 특정 필드에서 용어를 찾는 쿼리, match, term, range
+# 복합 쿼리(compound query)는 쿼리를 조합해서 사용하는 쿼리, bool
+
+# 전문 쿼리
+# 전문 쿼리는 전문 검색을 하기 위해 사용되며, 전문 검색을 할 필드는 인덱스 매핑
+# 시 text 타입으로 매핑해야 한다.
+# 일반적으로 블로그처럼 텍스트가 많은 필드에서 특정 용어를 검색할 때 사용한다.
+
+# 용어 수준 쿼리
+# 용어 수준 쿼리는 정확히 일치하는 용어를 찾기 위해 사용되며, 인덱스 매핑 시
+# keyword 타입으로 매핑해야 한다.
+# 전문 쿼리와는 다르게 정확한 용어를 검색할 때 사용한다.
+
+# match query
+# 전문 쿼리의 가장 기본이 되는 쿼리로, 전체 텍스트 중에서 특정 용어나 용어들을
+# 검색할 때 사용한다. 필드명을 모르면 쿼리를 진행할 수 없으므로 필드명을 모를
+# 경우 GET kibana_sample_data_ecommerce/_mapping를 실행해서 인덱스에 포함된
+# 필드가 어떤 것들이 있는지 확인해야 한다.
+
+# 하나의 용어를 검색하는 match query
+# _source 파라미터를 생략하거나 []만 쓰면 모든 필드를 다 보여주지만 [] 내부에
+# 필드 이름을 적어주면 적어줌 필드면 검색한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name", "customer_gender"],
+  "query": {
+    "match": {
+      "customer_full_name": "Mary"
+    }
+  }
+}
+
+# 복수개의 용어를 검색하는 match query
+# 복수개의 용어를 검색하려면 검색할 검색어를 띄어쓰기를 경계로 나열하면 된다.
+# 이때, 띄어쓰기는 OR로 인식한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name", "customer_gender"],
+  "query": {
+    "match": {
+      "customer_full_name": "mary byrd"
+    }
+  }
+}
+
+# "mary"와 "byrd"를 모두 포함하는 도큐먼트를 찾아보자 => AND
+# 검색어를 공백으로만 구분하면 OR로 인식하므로 AND를 사용하고 싶다면 아래와 같이
+# 필드명에 {}를 이용해서 검색어(query)와 연산자(operator)를 지정해야 한다.
+# operator 파라미터의 기본값은 OR이다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name", "customer_gender"],
+  "query": {
+    "match": {
+      "customer_full_name": {
+        "query": "byrd mary",
+        "operator": "and"
+      }
+    }
+  }
+}
+
+# match phrase query
+# 전문 쿼리의 한 종류로 구절(phrase)을 검색할 때 사용한다. 구절은 2개 이상의
+# 단어가 연결되어 만들어지는 단어이다.
+# "빨강색", "바지"와 같이 단어를 검색하는 쿼리가 match 쿼리라면 "빨강색 바지",
+# "80인치 텔레비젼"같이 여러 단어가 모여서 생성된 단어를 검색하는 쿼리가
+# match phrase 쿼리이다.
+# "빨강색 바지"를 검색 한다는 것은 "바지 빨강색"을 검색하려는 것이 아니므로
+# 검색하려는 모든 단어가 있어야 하며 단어 순서도 중요하다.
+
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name"],
+  "query": {
+    "match_phrase": {
+      "customer_full_name": "mary byrd"
+    }
+  }
+}
+
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name"],
+  "query": {
+    "match_phrase": {
+      "customer_full_name": "byrd mary"
+    }
+  }
+}
+
+# term query
+# term(용어) 쿼리는 용어 수준 쿼리의 대표적인 쿼리로 형식은 match 쿼리와 비슷
+# 하지만 match 쿼리는 분석기에 의해 검색어가 토큰화되고 대소문자를 구분하지
+# 않지만 term 쿼리는 분석기에 의해 검색어가 토큰화되지 않고 대소문자도 구분하는
+# 차이점이 있다.
+
+# text 타입 필드에 대한 term 쿼리
+# term 쿼리를 실행하면 1개도 검색되지 않는다. customer_full_name 필드는 text
+# 타입으로 설정된 필드이므로 match, match_phrase 쿼리는 사용할 수 있지만 term
+# 쿼리는 사용할 수 없다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name"],
+  "query": {
+    "term": {
+      "customer_full_name": {
+        "value": "Mary Bailey"
+      }
+    }
+  }
+}
+
+
+# keyword 타입 필드에 대한 term 쿼리
+# customer_full_name 필드는 멀티 필드로 설정이 되어있고 fields 파라미터에
+# keyword라는 이름으로 keyword 속성을 설정했다.
+# 용어 수준 쿼리는 대소문자를 구분하기 때문에 검색어를 mary bailey와 같이
+# 입력하면 1개도 검색되지 않는다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name"],
+  "query": {
+    "term": {
+      "customer_full_name.keyword": {
+        "value": "mary bailey"
+      }
+    }
+  }
+}
+
+# 아래와 같이 검색어의 대소문자도 신경써서 검색어를 입력해야 정상적으로 term
+# 쿼리가 실행된 결과를 확인할 수 있다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name"],
+  "query": {
+    "term": {
+      "customer_full_name.keyword": {
+        "value": "Mary Bailey"
+      }
+    }
+  }
+}
+
+# 필드명의 {} 불록에 value 파라미터만 들어가므로 아래와 같이 {} 블록과 value
+# 파라미터를 생략해도 된다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["customer_full_name"],
+  "query": {
+    "term": {
+      "customer_full_name.keyword": "Mary Bailey"
+    }
+  }
+}
