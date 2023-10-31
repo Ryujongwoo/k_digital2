@@ -1,0 +1,478 @@
+# 집계(aggregation)
+# 집계의 형태는 메트릭 집계와 버켓 집계가 있고 데이터를 그룹화하고 통계값을 얻는
+# 기능이다.
+# RDBMS의 Group by절과 그룹 함수(sum, avg, max, min, count)를 사용하는 것과 같은
+# 개념이다.
+
+# "aggs" 파라미터는 집계를 요청 한다.
+# 집계 이름은 사용자가 지징하는 집계 이름이고 집계 타입 집계의 형태이다.
+# GET 인덱스이름/_search
+# {
+#   "aggs": {
+#     "집계이름": {
+#       "집계타입": {
+#         ...        
+#       }
+#     }
+#   }
+# }
+
+GET kibana_sample_data_ecommerce/_mapping
+GET kibana_sample_data_ecommerce/_search
+
+# 메트릭 집계(metric aggregation)는 통계 계산(최소, 최대, 합계, 평균, 개수)을
+# 실행한다.
+
+# avg aggregation는 평균 값을 계산한다.
+# 쿼리를 설정하지 않으면 전체 데이터에 대한 평균을 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "aggs": {
+    "avg_aggs": {
+      "avg": {"field": "taxful_total_price"}
+    }
+  }
+}
+
+# 쿼리를 설정하면 조건을 만족하는 데이터에 대한 평균을 계산한다.
+# size 파라미터는 집계 결과에 출력할 도큐먼트의 개수를 지정한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "_source": ["geoip.city_name"],
+  "query": {
+    "term": {
+      "geoip.city_name": {"value": "Dubai"}
+    }
+  }, 
+  "aggs": {
+    "avg_aggs": {
+      "avg": {"field": "taxful_total_price"}
+    }
+  },
+  "size": 0
+}
+
+# percentiles aggregation는 백분위 값(1사분위수, 2사분위수(중위수), 3사분위수)을
+# 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "_source": ["geoip.city_name", "taxful_total_price"],
+  "aggs": {
+    "percents_aggs": {
+      "percentiles": {
+        "field": "taxful_total_price",
+        "percents": [
+          25,
+          50,
+          75
+        ]
+      }
+    },
+    "avg_aggs": {
+      "avg": {"field": "taxful_total_price"}
+    }
+  }
+}
+
+# sum aggregation는 합계 값을 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "sum_aggs": {
+      "sum": {"field": "taxful_total_price"}
+    }
+  }
+}
+
+# max aggregation는 합계 값을 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "max_aggs": {
+      "max": {"field": "taxful_total_price"}
+    }
+  }
+}
+
+# min aggregation는 합계 값을 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "min_aggs": {
+      "min": {"field": "taxful_total_price"}
+    }
+  }
+}
+
+# cardinality aggregation는 필드의 중복되는 값은 제외하고 유일한 데이터의 개수를
+# 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 1,
+  "_source": ["geoip.city_name", "geoip.continent_name", "day_of_week"],
+  "aggs": {
+    "cadinality_aggs1": {
+      "cardinality": {
+        "field": "geoip.city_name"
+      }
+    },
+    "cadinality_aggs2": {
+      "cardinality": {
+        "field": "geoip.continent_name"
+      }
+    },
+    "cadinality_aggs3": {
+      "cardinality": {
+        "field": "day_of_week"
+      }
+    }
+  }
+}
+
+# precision_threshold 파라미터는 유일한 데이터를 계산하는 정확도 수치로 이해하면
+# 되고 이 값이 커지면 정확도는 올라가지만 정확도를 판단하는 시스템이 시스템의
+# 자원을 많이 사용하게 된다.
+# recision_threshold 파라미터 값은 일단 cardinality 집계를 실행해 본 후 실제
+# 결과로 나오는 값 이상으로 지정해야 한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "_source": ["geoip.city_name", "geoip.continent_name", "day_of_week"],
+  "aggs": {
+    "cadinality_aggs": {
+      "cardinality": {
+        "field": "day_of_week",
+        "precision_threshold": 7
+      }
+    }
+  }
+}
+
+# 버켓은 도큐먼트가 분할되는 단위로 나눠진 각각의 그룹을 의미하며 버켓 집계
+# (bucket aggregation)특정 기준에 맞춰 그룹화를 실행한다.
+
+# 버켓 집계 중 terms 집계로 유일한 값들을 확인할 수 있다.
+# size 파라미터가 2개가 있는데 _search에 바로 나오는 size 파라미터는 쿼리에의해
+# 검색된 도큐먼트 중에 출력할 도큐먼트의 개수를 지정하고 terms 집계 내부에있는
+# size 파라미터는 유일한 값 중에 출력할 도큐먼트의 개수를 지정한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "cadinality_aggs1": {
+      "cardinality": {
+        "field": "geoip.city_name"
+      }
+    },
+    "cadinality_aggs2": {
+      "terms": {
+        "field": "geoip.city_name",
+        "size": 11
+      }
+    }
+  }
+}
+
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "cadinality_aggs1": {
+      "cardinality": {
+        "field": "geoip.continent_name"
+      }
+    },
+    "cadinality_aggs2": {
+      "terms": {
+        "field": "geoip.continent_name",
+        "size": 5
+      }
+    }
+  }
+}
+
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "cadinality_aggs1": {
+      "cardinality": {
+        "field": "day_of_week"
+      }
+    },
+    "cadinality_aggs2": {
+      "terms": {
+        "field": "day_of_week",
+        "size": 7
+      }
+    }
+  }
+}
+
+# histogram aggregation는 숫자 타입의 필드를 일정한 간격을 기준으로 구분한다.
+# interval 파라미터로 히스토그램의 간격을 지정한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "histogram_aggs": {
+      "histogram": {
+        "field": "products.base_price",
+        "interval": 100
+      }
+    }
+  }
+}
+
+# range aggregation는 histogram 집계와 비슷한데 특정 구간에 데이터가 몰려있거나
+# 데이터의 편차가 큰 경우 숫자 타입의 필드를 범위를 사용자가 지정해서 사용한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "range_aggs": {
+      "range": {
+        "field": "products.base_price",
+        "ranges": [
+          {"from": 0, "to": 25},
+          {"from": 25, "to": 50},
+          {"from": 50, "to": 75},
+          {"from": 75, "to": 100},
+          {"from": 100, "to": 200},
+          {"from": 200, "to": 1000}
+        ]
+      }
+    }
+  }
+}
+
+# terms aggregation는 필드의 유일한 값을 기준으로 버켓을 나눌 때 사용된다.
+# terms 집계의 size 파라미터는 지정한 필드의 값을 기준으로 집계해서 도큐먼트
+# 개수를 출력할 상위 버켓의 개수를 지정한다.
+# size 파라미터로 지정한 숫자가 생성되는 버켓의 개수보다 작으면 size 파라미터로
+# 지정한 버켓만 보이고 나머지 버켓들은 보이지 않는다.
+# terms 집계를 실행하면 나타나는 doc_count_error_upper_bound는 버켓이 분류하지
+# 못한 도큐먼트의 개수이고 sum_other_doc_count는 size 파라미터에 지정한 값
+# 때문에 보이지 않는 도큐먼트의 개수이다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "terms_aggs": {
+      "terms": {
+        "field": "day_of_week",
+        "size": 6
+      }
+    }
+  }
+}
+
+# terms 집계에 show_term_doc_count_error 파라미터 값을 true로 지정하면 버켓마다
+# doc_count_error_upper_bound(잠재적 오류) 값을 확인할 수 있다.
+# 잠재적 오류가 발생되면 shard_size 파라미터를 지정해 샤드의 크기를 늘려준다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "terms_aggs": {
+      "terms": {
+        "field": "day_of_week",
+        "size": 6,
+        "show_term_doc_count_error": true,
+        "shard_size": 100
+      }
+    }
+  }
+}
+
+# 집계의 조합
+# 메트릭 집계로 특정 필드의 통계를 구할 수 있고 버켓 집계로 도큐먼트를 그룹화
+# 할 수 있다. 이는 관계형 데이터베이스에서 group by로 그룹화하고 그룹 함수를
+# 사용하는 것 처럼 버켓 집계와 메트릭 집계를 조합하면 다양한 그룹별 통계를
+# 계산할 수 있다.
+
+# 버켓 집계와 메트릭 집계의 조합
+# 집계 조합의 가장 기본적인 형태는 버켓 집계로 도큐먼트를 그룹화하고 각 버켓
+# 집계별로 메트릭 집계를 사용하는 형태이다.
+
+# 버켓 집계(그룹화) 후 메트릭 집계(통계값)를 1개만 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "terms_aggs": {
+      "terms": {
+        "field": "day_of_week",
+        "size": 5
+      },
+      "aggs": {
+        "avg_aggs": {
+          "avg": {"field": "products.base_price"}
+        }
+      }
+    }
+  }
+}
+
+# 버켓 집계(그룹화) 후 메트릭 집계(통계값)를 2개 이상 계산한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "terms_aggs": {
+      "terms": {
+        "field": "day_of_week",
+        "size": 5
+      },
+      "aggs": {
+        "avg_aggs": {
+          "avg": {"field": "products.base_price"}
+        },
+        "sum_aggs": {
+          "sum": {"field": "products.base_price"}
+        },
+        "max_aggs": {
+          "max": {"field": "products.base_price"}
+        },
+        "min_aggs": {
+          "min": {"field": "products.base_price"}
+        }
+      }
+    }
+  }
+}
+
+# 서브 버켓 집계
+# 버켓 집계 내부에 다시 버켓 집계(서브 버켓)를 요청하는 집계이다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "histogram_aggs": {
+      "histogram": {
+        "field": "products.base_price",
+        "interval": 100
+      },
+      "aggs": {
+        "terms_aggs": {
+          "terms": {
+            "field": "day_of_week",
+            "size": 7
+          }
+        }
+      }
+    }
+  }
+}
+
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0, 
+  "aggs": {
+    "continent_aggs": {
+      "terms": {
+        "field": "geoip.continent_name",
+        "size": 10
+      },
+      "aggs": {
+        "city_aggs": {
+          "terms": {
+            "field": "geoip.city_name",
+            "size": 10
+          }
+        }
+      }
+    }
+  }
+}
+
+# 서브 버켓 집계 내부에 메트릭 집계 요청하기
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0, 
+  "aggs": {
+    "continent_aggs": {
+      "terms": {
+        "field": "geoip.continent_name",
+        "size": 10
+      },
+      "aggs": {
+        "city_aggs": {
+          "terms": {
+            "field": "geoip.city_name",
+            "size": 10
+          },
+          "aggs": {
+            "avg_aggs": {
+              "avg": {
+                "field": "products.base_price"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# pipeline aggregation는 이전 결과를 다음 단계에서 이용하는 파이프라인 개념을
+# 사용하는 집계로 이전 집계로 만들어진 결과를 입력으로 삼아서 다시 집계하는
+# 방식이다.
+# 기존 집계 결과를 이용해 새로운 집계를 생성하는 부모 집계와 기존 집계를 참고해
+# 새로운 집게를 생성하는 형제 집계가 있다.
+# 부모 집계의 결과는 기존 집계 내부에 표시되고 형제 집계의 결과는 기존 집계와
+# 동일한 선상에 표시된다.
+
+# 부모 집계(parent aggregation)
+# {
+#   "aggs": {
+#     ...
+#     "aggs": {
+#       ...
+#       부모 집계
+#     }
+#   }
+# }
+
+# 부모 집계는 이전 집계 결과를 입력으로 사용하는 집계이므로 부모 집계 단독으로
+# 사용할 수 없고 반드시 먼저 다른 집계가 있어야 하며 그 집계 결과를 부모 집계가
+# 사용한다.
+GET kibana_sample_data_ecommerce/_search
+{
+  "size": 0,
+  "aggs": {
+    "histogram_aggs": {
+      "histogram": {
+        "field": "products.base_price",
+        "interval": 100
+      },
+      "aggs": {
+        "sum_aggs": {
+          "sum": {
+            "field": "taxful_total_price"
+          }
+        },
+        "cum_sum": {
+          "cumulative_sum": {
+            "buckets_path": "sum_aggs"
+          }
+        }
+      }
+    }
+  }
+}
+
+# 형제 집계(sibling aggregation)
+# {
+#   "aggs": {
+#     ...
+#     "aggs": {
+#       ...
+#     },
+#     형제 집계
+#   }
+# }
