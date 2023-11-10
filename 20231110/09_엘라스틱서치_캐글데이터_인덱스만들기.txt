@@ -1,0 +1,354 @@
+캐글 데이터(csv 파일)를 활용한 엘라스틱서치 인덱스 작성
+
+# tmdb 5000 movie 데이터 범위 확인
+GET tmdb_5000_movie/_mapping
+# stats 집계는 통계값을 알려주는 메트릭 집계이다.
+GET tmdb_5000_movie/_search
+{
+  "size": 0,
+  "aggs": {
+    "tmdb_stats": {
+      "stats": {
+        "field": "release_date"
+      }
+    }
+  }
+}
+# "min_as_string" : "1916-09-04T00:00:00.000Z"
+# "max_as_string" : "2017-02-03T00:00:00.000Z"
+
+로그스태시를 이용해서 tmdb_5000_movies.csv 파일 읽어오기
+
+================================================================================================
+logstash-tmdb.conf의 내용
+================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/tmdb_5000_movies.csv"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+output {
+  stdout { }
+}
+================================================================================================
+
+로그스태시 실행
+================================================================================================
+.\bin\logstash.bat -f .\config\logstash-tmdb.conf --log.level error
+================================================================================================
+
+tmdb_5000_movies.csv 파일의 첫 줄에는 컬럼의 이름이 적혀 있는데 컬럼 이름은 제외하고 읽는다.
+구분자를 지정하고 컬럼 이름을 붙이고 불필요한 컬럼은 제거한다.
+
+================================================================================================
+logstash-tmdb.conf의 내용
+csv 필터를 사용해서 tmdb_5000_movies.csv 파일을 읽어들인다.
+separator 옵션은 구분자를 지정한다. 기본값은 ","
+skip_header 옵션을 true로 지정해서 첫 줄의 컬럼 이름은 제외하고 읽어들인다.
+columns 옵션은 파일 첫 줄의 컬럼 이름을 지정해서 필드 이름으로 지정한다.
+remove_field 옵션은 불필요한 필드를 제거한다.
+날짜/시간 타입으로 파싱을 하기 위해서 release_date 필드의 이름은 _release_date로 지정했다.
+================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/tmdb_5000_movies.csv"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  csv {
+    separator => ","
+    skip_header => true
+    columns => ["budget", "genres", "homepage", "id", "keywords", "original_language", "original_title", "overview", "popularity" , "production_companies", "production_countries", "_release_date", "revenue", "runtime", "spoken_languages", "status", "tagline", "title", "vote_average", "vote_count"]
+    remove_field => ["message", "host", "@version", "path", "@timestamp"]
+  }
+}
+
+output {
+  stdout { }
+}
+================================================================================================
+
+날짜/시간 타입(ISO8601)으로 파싱
+
+================================================================================================
+logstash-tmdb.conf의 내용
+date 필터를 이용해 _release_date 필드의 문자열을 ISO8601 형태로 변경해 release_date 필드에 저장한다.
+================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/tmdb_5000_movies.csv"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  csv {
+    separator => ","
+    skip_header => true
+    columns => ["budget", "genres", "homepage", "id", "keywords", "original_language", "original_title", "overview", "popularity" , "production_companies", "production_countries", "_release_date", "revenue", "runtime", "spoken_languages", "status", "tagline", "title", "vote_average", "vote_count"]
+    remove_field => ["message", "host", "@version", "path", "@timestamp", "keywords", "production_companies", "production_countries", "spoken_languages"]
+  }
+  date {
+    match => ["_release_date", "YYYY-MM-dd"]
+    target => release_date
+    timezone => "UTC"
+    remove_field => ["_release_date"]
+  }
+}
+
+output {
+  stdout { }
+}
+================================================================================================
+
+json 형태를 배열 형태로 파싱
+
+================================================================================================
+logstash-tmdb.conf의 내용
+ruby 필터를 이용해 json 형태인 genres 필드를 배열 형태로 파싱
+code 옵션에 ruby 언어 코드를 작성한다.
+ruby 플러그인: https://www.elastic.co/guide/en/logstash/7.17/plugins-filters-ruby.html
+event API: https://www.elastic.co/guide/en/logstash/7.17/event-api.html
+event API는 로그스태시 내부에서 각 이벤트를 처리할 때 사용되는 API로 get(), set() 함수를 제공하며
+이를 이용해 ruby 필터에서 필드의 값을 읽고 변경할 수 있다.
+event.get('얻어오려는 필드의 경로')
+event.set('얻어오려는 필드의 경로', 저장하려는 필드)
+================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/tmdb_5000_movies.csv"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  csv {
+    separator => ","
+    skip_header => true
+    columns => ["budget", "genres", "homepage", "id", "keywords", "original_language", "original_title", "overview", "popularity" , "production_companies", "production_countries", "_release_date", "revenue", "runtime", "spoken_languages", "status", "tagline", "title", "vote_average", "vote_count"]
+    remove_field => ["message", "host", "@version", "path", "@timestamp", "production_companies", "production_countries", "spoken_languages"]
+  }
+  date {
+    match => ["_release_date", "YYYY-MM-dd"]
+    target => release_date
+    timezone => "UTC"
+    remove_field => ["_release_date"]
+  }
+  ruby {
+    code => "
+      genres = JSON.parse(event.get('genres')).map{|genre|genre['name']}
+      event.set('genres', genres)
+      keywords = JSON.parse(event.get('keywords')).map{|keyword|keyword['name']}
+      event.set('keywords', keywords)
+    "
+  }
+}
+
+output {
+  stdout { }
+}
+================================================================================================
+
+json 필터를 사용해서 파싱
+
+================================================================================================
+logstash-tmdb.conf의 내용
+json 필터를 이용해 json 형태인 genres 필드를 배열 형태로 파싱
+source 옵션에 파싱되지 않은 JSON 형태의 문자열이 들어있는 필드를 지정한다.
+target 옵션에 파싱된 내용을 저장할 필드를 지정한다.
+================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/tmdb_5000_movies.csv"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  csv {
+    separator => ","
+    skip_header => true
+    columns => ["budget", "genres", "homepage", "id", "keywords", "original_language", "original_title", "overview", "popularity" , "production_companies", "production_countries", "_release_date", "revenue", "runtime", "spoken_languages", "status", "tagline", "title", "vote_average", "vote_count"]
+    remove_field => ["message", "host", "@version", "path", "@timestamp", "production_companies", "production_countries", "spoken_languages"]
+  }
+  date {
+    match => ["_release_date", "YYYY-MM-dd"]
+    target => release_date
+    timezone => "UTC"
+    remove_field => ["_release_date"]
+  }
+  json {
+    source => "genres"
+    target => "genres"
+  }
+  ruby {
+    code => "
+      genres = event.get('genres').map{|genre|genre['name']}
+      event.set('genres', genres)
+      keywords = JSON.parse(event.get('keywords')).map{|keyword|keyword['name']}
+      event.set('keywords', keywords)
+    "
+  }
+}
+
+output {
+  stdout { }
+}
+================================================================================================
+
+엘라스틱서치로 인덱스 매핑을 하기
+
+================================================================================================
+logstash-tmdb.conf의 내용
+output에 elasticsearch 플러그인을 지정한다.
+================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/tmdb_5000_movies.csv"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  csv {
+    separator => ","
+    skip_header => true
+    columns => ["budget", "genres", "homepage", "id", "keywords", "original_language", "original_title", "overview", "popularity" , "production_companies", "production_countries", "_release_date", "revenue", "runtime", "spoken_languages", "status", "tagline", "title", "vote_average", "vote_count"]
+    remove_field => ["message", "host", "@version", "path", "@timestamp", "production_companies", "production_countries", "spoken_languages"]
+  }
+  date {
+    match => ["_release_date", "YYYY-MM-dd"]
+    target => release_date
+    timezone => "UTC"
+    remove_field => ["_release_date"]
+  }
+  json {
+    source => "genres"
+    target => "genres"
+  }
+  ruby {
+    code => "
+      genres = event.get('genres').map{|genre|genre['name']}
+      event.set('genres', genres)
+      keywords = JSON.parse(event.get('keywords')).map{|keyword|keyword['name']}
+      event.set('keywords', keywords)
+    "
+  }
+}
+
+output {
+  stdout { }
+  elasticsearch {
+    index => "tmdb_5000_movie2"
+  }
+}
+================================================================================================
+
+tmdb_5000_movie2는 다이나믹 매핑이 적용되서 인덱스가 생성된다.
+tmdb_5000_movies.csv 파일을 구성하는 필드의 데이터 타입을 알고 있으면 다이나믹 매핑보다는 
+명시적 매핑을 하는 것이 좋다.
+
+tmdb_5000_movie3 인덱스 명시적 매핑으로 만들고 로그스태시를 실행한다.
+================================================================================================
+PUT tmdb_5000_movie3
+{
+  "mappings": {
+    "properties": {
+      "budget": {"type": "double"},
+      "popularity": {"type": "double"},
+      "vote_average": {"type": "double"},
+      "vote_count": {"type": "double"},
+      "id": {"type": "long"},
+      "revenue": {"type": "long"},
+      "runtime": {"type": "long"},
+      "genres": {"type": "keyword"},
+      "original_language":{"type": "keyword"},
+      "keywords": {"type": "keyword"},
+      "status":{"type": "keyword"},
+      "homepage": {"type": "text"},
+      "original_title": {"type": "text"},
+      "overview": {"type": "text"},
+      "tagline": {"type": "text"},
+      "title": {"type": "text"},
+      "release_date": {"type": "date", "format": "iso8601"}
+    }
+  }
+}
+================================================================================================
+GET tmdb_5000_movie3/_search
+GET tmdb_5000_movie3/_mapping
+
+매핑 설정이 동일한 여러개의 인덱스를 만들어야 한다면 인텍스 템플릿을 만들어 실행한다.
+================================================================================================
+# tmdb 인덱스 템플릿
+================================================================================================
+PUT _index_template/tmdb
+{
+  "index_patterns": "tmdb_5000_movie*",
+  "priority": 1,
+  "template": {
+    "mappings": {
+      "properties": {
+        "budget": {"type": "double"},
+        "popularity": {"type": "double"},
+        "vote_average": {"type": "double"},
+        "vote_count": {"type": "double"},
+        "id": {"type": "long"},
+        "revenue": {"type": "long"},
+        "runtime": {"type": "long"},
+        "genres": {"type": "keyword"},
+        "original_language":{"type": "keyword"},
+        "keywords": {"type": "keyword"},
+        "status":{"type": "keyword"},
+        "homepage": {"type": "text"},
+        "original_title": {"type": "text"},
+        "overview": {"type": "text"},
+        "tagline": {"type": "text"},
+        "title": {"type": "text"},
+        "release_date": {"type": "date", "format": "iso8601"}
+      }
+    }
+  }
+}
+================================================================================================
+
+logstash-tmdb.conf의 내용은 elasticsearch 플러그인의 index 속성만 변경해서 로그스태시를 실행한다.
+================================================================================================
+output {
+  stdout { }
+  elasticsearch {
+    index => "tmdb_5000_movie4"
+  }
+}
+================================================================================================
+GET tmdb_5000_movie4/_search
+GET tmdb_5000_movie4/_mapping
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
