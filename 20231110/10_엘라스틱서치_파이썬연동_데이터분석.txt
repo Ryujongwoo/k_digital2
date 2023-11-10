@@ -1,0 +1,108 @@
+키바나 7.5 버전 부터는 지도에 관련된 기능이 Maps로 통합되었다.
+키바나 7.4 버전까지는 Coordinate Map와 Region Map 시각화 도구가 별도로 존재했었다.
+Coordinate Map와 Region Map 시각화 도구를 키바나 7.5 버전 이후에서 사용을 하려면 kibana.yml 파일을
+열어서 xpack.maps.showMapVisualizationTypes: true 추가하고 키바나를 다시 실행하며 사용할 수 있다.
+
+서울 행정동별 인구 분석하기
+
+로그스태시로 데이터 읽기
+=======================================================================================================
+logstash-spop.conf 파일 내용
+=======================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/seoul_pop.txt"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+output {
+  stdout { }
+}
+=======================================================================================================
+
+구분자로 tab을 사용할 것이므로 모든 ","를 ""로 치환한다.
+=======================================================================================================
+logstash-spop.conf 파일 내용
+=======================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/seoul_pop.txt"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  mutate {
+    gsub => ["message", ",", ""]
+  }
+}
+
+output {
+  stdout { }
+}
+=======================================================================================================
+
+첫 줄 제외하고 구분자(tab키)와 필드명을 지정하고 불필요한 필드와 행을 제거한 후 elasticsearch에 index로 넣어준다.
+=======================================================================================================
+logstash-spop.conf 파일 내용
+=======================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/seoul_pop.txt"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  mutate {
+    gsub => ["message", ",", ""]
+  }
+  csv {
+    skip_header => true
+    separator => "	" # 탭은 \t가 아니라 직접 tab키를 눌러 입력한다.
+    columns => ["GIGAN", "JACHIGU", "DONG", "SEDAE", "GYE_1", "NAMJA_1", "YEOJA_1", "GYE_2", "NAMJA_2", "YEOJA_2", "GYE_3", "NAMJA_3", "YEOJA_3", "SEDAEDANGINGU", "N_65SEISANGGORYEONGJA"]
+    remove_field => ["message", "@version", "path", "@timestamp", "GIGAN", "host"]
+  }
+  if [DONG] == "소계" or [DONG] == "합계" or [DONG] == "동"{
+      drop {}
+  }
+}
+
+output {
+  stdout { }
+  elasticsearch {
+    index => "seoul_ingu"
+  }
+}
+=======================================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
