@@ -1,0 +1,145 @@
+키바나 7.5 버전 부터는 지도에 관련된 기능이 Maps로 통합되었다.
+키바나 7.4 버전까지는 Coordinate Map와 Region Map 시각화 도구가 별도로 존재했었다.
+Coordinate Map와 Region Map 시각화 도구를 키바나 7.5 버전 이후에서 사용을 하려면 kibana.yml 파일을
+열어서 xpack.maps.showMapVisualizationTypes: true 추가하고 키바나를 다시 실행하며 사용할 수 있다.
+
+서울 행정동별 인구 분석하기
+
+로그스태시로 데이터 읽기
+=======================================================================================================
+logstash-spop.conf 파일 내용
+=======================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/seoul_pop.txt"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+output {
+  stdout { }
+}
+=======================================================================================================
+
+구분자로 tab을 사용할 것이므로 모든 ","를 ""로 치환한다.
+=======================================================================================================
+logstash-spop.conf 파일 내용
+=======================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/seoul_pop.txt"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  mutate {
+    gsub => ["message", ",", ""]
+  }
+}
+
+output {
+  stdout { }
+}
+=======================================================================================================
+
+첫 줄 제외하고 구분자(tab키)와 필드명을 지정하고 불필요한 필드와 행을 제거한 후 elasticsearch에 index로 넣어준다.
+=======================================================================================================
+logstash-spop.conf 파일 내용
+=======================================================================================================
+input {
+  file {
+    path => "C:/k_digital/elasticStack/seoul_pop.txt"
+    start_position => "beginning"
+    sincedb_path => "nul"
+  }
+}
+
+filter {
+  mutate {
+    gsub => ["message", ",", ""]
+  }
+  csv {
+    skip_header => true
+    separator => "	" # 탭은 \t가 아니라 직접 tab키를 눌러 입력한다.
+    columns => ["GIGAN", "JACHIGU", "DONG", "SEDAE", "GYE_1", "NAMJA_1", "YEOJA_1", "GYE_2", "NAMJA_2", "YEOJA_2", "GYE_3", "NAMJA_3", "YEOJA_3", "SEDAEDANGINGU", "N_65SEISANGGORYEONGJA"]
+    remove_field => ["message", "@version", "path", "@timestamp", "GIGAN", "host"]
+  }
+  if [DONG] == "소계" or [DONG] == "합계" or [DONG] == "동" {
+      drop {}
+  }
+}
+
+output {
+  stdout { }
+  elasticsearch {
+    index => "seoul_ingu"
+  }
+}
+=======================================================================================================
+
+=======================================================================================================
+seoul_ingu 인덱스 명시적 매핑
+=======================================================================================================
+PUT seoul_ingu
+{
+  "mappings": {
+    "properties": {
+      "JACHIGU": {"type": "keyword"},
+      "DONG": {"type": "keyword"},
+      "SEDAE": {"type": "integer"},
+      "GYE_1": {"type": "integer"},
+      "NAMJA_1": {"type": "integer"},
+      "YEOJA_1": {"type": "integer"},
+      "GYE_2": {"type": "integer"},
+      "NAMJA_2": {"type": "integer"},
+      "YEOJA_2": {"type": "integer"},
+      "GYE_3": {"type": "integer"},
+      "NAMJA_3": {"type": "integer"},
+      "YEOJA_3": {"type": "integer"},
+      "SEDAEDANGINGU": {"type": "float"},
+      "N_65SEISANGGORYEONGJA": {"type": "integer"}
+    }
+  }
+}
+=======================================================================================================
+
+GET seoul_ingu/_search
+GET seoul_ingu/_mapping
+DELETE seoul_ingu
+
+seoul_ingu 인덱스가 생성되었으면 키바나에서 인덱스 패턴을 만든다.
+공공데이터는 다양한 지리 정보도 제공한다. 국가공간정보포털(http://www.nsdi.go.kr/) 같은 곳에서 다양한
+벡터 레이어를 제공한다. 국가공간정보포털의 오픈마켓에서 행정동 단위의 데이터를 얻어올 수 있다.
+
+(센서스경계)행정동경계 데이터(Z_SOP_BND_ADM_DONG_PG.zip)를 다운받는다.
+다운받은 파일의 압축을 풀면 geojson 파일이 아닌 국가에서 제공하는 공간 데이터인 shp 파일(좌표)이 보인다.
+
+shp 파일을 키바나에서 사용할 수 있도록 geojson 형식으로 변환하기 위해서 QGIS라는 툴을 사용한다.
+QGIS Desktop을 실행하고 프로젝트 => 새로 생성을 클릭해서 프로젝트를 만든다.
+왼쪽 메뉴 XYZ Tiles 우클릭 => 새 연결을 클릭한 후 연결 이름과 URL을 입력한다.
+배경 지도가 만들어졌으면 레이어 => 레이어 추가 => 벡터 레이어 추가를 클릭해서 벡터 레이어를 불러온다.
+벡터 레이어를 불러왔으면 구글 지도와 좌표계를 통일시켜야 한다.
+왼쪽 레이어 메뉴에서 추가한 벡터 레이어 우클릭 => 레이어 좌표계 => 레이어 좌표계 설정
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
