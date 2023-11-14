@@ -1,0 +1,52 @@
+서울시 공공 와이파이 서비스 위치 정보(https://data.seoul.go.kr/dataList/OA-20883/S/1/datasetView.do)
+서울시 공공 와이파이 위치 정보는 오픈 API를 사용할 수 있다.
+
+브라우저에서 오픈 API 호출하기
+브라우저를 열고 샘플 URL을 입력할 때 (인증키)는 개인 인증키로 대체한다.
+
+서울시 공공와이파이 서비스 위치 정보
+  http://openapi.seoul.go.kr:8088/(인증키)/xml/TbPublicWifiInfo/1/5/
+  http://openapi.seoul.go.kr:8088/746e4968796d6b7639366763624a53/xml/TbPublicWifiInfo/1/5/
+
+서울시 공공와이파이 서비스 위치 정보(서대문구)
+  http://openapi.seoul.go.kr:8088/(인증키)/xml/TbPublicWifiInfo/1/5/서대문구/
+  http://openapi.seoul.go.kr:8088/746e4968796d6b7639366763624a53/xml/TbPublicWifiInfo/1/5/종로구/
+
+서울시 공공와이파이 서비스 위치 정보(서대문구 서소문로)
+  http://openapi.seoul.go.kr:8088/(인증키)/xml/TbPublicWifiInfo/1/5/서대문구/서소문로/
+  http://openapi.seoul.go.kr:8088/746e4968796d6b7639366763624a53/xml/TbPublicWifiInfo/1/5/종로구/북촌로
+
+X_SWIFI_WRDOFC => 자치구, X_SWIFI_MAIN_NM => 와이파이명, LAT => Y좌표, LNT => X좌표
+
+파이썬 코드를 이용해 오픈 API 실행하기
+오픈 API는 HTTP로 데이터를 요청하고 받을 수 있으므로 requests 모듈을 설치한다.
+pip install requests
+오픈 API 요청 결과 값이 xml 형태로 넘어오므로 xml을 딕서너리로 변환하는 xmltodict 모듈을 설치한다.
+pip install xmltodict
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
